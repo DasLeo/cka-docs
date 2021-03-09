@@ -23,8 +23,6 @@
   - [Install Calido CNI](#install-calido-cni)
     - [Get and adjust Config](#get-and-adjust-config)
     - [Verify node-to-node communication](#verify-node-to-node-communication)
-  - [Maintenance](#maintenance)
-    - [Create Snapshots of etcd database](#create-snapshots-of-etcd-database)
 
 ## Setup Internal Network on Hetzner
 
@@ -461,12 +459,4 @@ kubectl exec --stdin --tty shell-demo-xxxxxxx-xxxxx -- /bin/bash
 
 apk add telnet
 telnet OtherPodRunningNginx 443
-```
-
-## Maintenance
-
-### Create Snapshots of etcd database
-
-```bash
-kubectl -n kube-system exec -it etcd-k8s-test-master -- sh -c "ETCDCTL_API=3 ETCDCTL_CACERT=/etc/kubernetes/pki/etcd/ca.crt ETCDCTL_CERT=/etc/kubernetes/pki/etcd/server.crt ETCDCTL_KEY=/etc/kubernetes/pki/etcd/server.key etcdctl help"
 ```

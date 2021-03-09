@@ -18,3 +18,19 @@ Examples can be found here:
 * <https://github.com/kubernetes/kubernetes/issues/80582>
 
 ## kubectl commands
+
+## Maintenance
+
+### Create Snapshots of etcd database
+
+```bash
+ETCDPOD=$(kubectl --namespace kube-system get pods -l=component=etcd --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
+CURDATE=$(date +%m-%d-%y_%H-%M)
+kubectl -n kube-system exec -it $ETCDPOD -- sh -c \
+"ETCDCTL_API=3 \
+ETCDCTL_CACERT=/etc/kubernetes/pki/etcd/ca.crt \
+ETCDCTL_CERT=/etc/kubernetes/pki/etcd/server.crt \
+ETCDCTL_KEY=/etc/kubernetes/pki/etcd/server.key \
+etcdctl snapshot save \
+/var/lib/etcd/snapshot-pre-upgrade-$CURDATE"
+```
