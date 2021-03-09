@@ -1,6 +1,32 @@
 # Setup Kubernetes Cluster
 
-## Setup internal network
+## Table of Contents
+
+- [Setup Kubernetes Cluster](#setup-kubernetes-cluster)
+  - [Table of Contents](#table-of-contents)
+  - [Setup Internal Network on Hetzner](#setup-internal-network-on-hetzner)
+  - [Install latest HWE Kernel](#install-latest-hwe-kernel)
+  - [Install and configure CRI-O container runtime](#install-and-configure-cri-o-container-runtime)
+    - [Linux Modules and their sysfs configs](#linux-modules-and-their-sysfs-configs)
+    - [Ubuntu Packages and repos](#ubuntu-packages-and-repos)
+    - [CRI-O Daemon Setup](#cri-o-daemon-setup)
+  - [Install Kubernetes binaries](#install-kubernetes-binaries)
+  - [Setup hosts file](#setup-hosts-file)
+  - [Init the master using kubeadm](#init-the-master-using-kubeadm)
+  - [Firewall on Master](#firewall-on-master)
+  - [Add Context to local kube config](#add-context-to-local-kube-config)
+  - [Join Kubelet as worker node](#join-kubelet-as-worker-node)
+    - [Firewall on Worker Node](#firewall-on-worker-node)
+    - [Create CA hashed token](#create-ca-hashed-token)
+    - [Join using kubeadm](#join-using-kubeadm)
+  - [Schedule pods on Control plane node](#schedule-pods-on-control-plane-node)
+  - [Install Calido CNI](#install-calido-cni)
+    - [Get and adjust Config](#get-and-adjust-config)
+    - [Verify node-to-node communication](#verify-node-to-node-communication)
+  - [Maintenance](#maintenance)
+    - [Create Snapshots of etcd database](#create-snapshots-of-etcd-database)
+
+## Setup Internal Network on Hetzner
 
 Disable cloudInit first by adding the file `/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg`:
 
@@ -83,6 +109,8 @@ sudo apt install conntrack
 # to prevent version mismatch of CRI-O and Kubernetes packages
 sudo apt-mark hold cri-o cri-o-runc
 ```
+
+### CRI-O Daemon Setup
 
 Next add the `conmon` binary path and the docker.io registry to `/etc/crio/crio.conf`
 CRI-O uses systemd as cgroup driver by default, but if this ever changes, we need to set `cgroup_manager = "systemd"` and `conmon_cgroup="system.slice"` as well.
