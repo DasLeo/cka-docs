@@ -34,3 +34,13 @@ ETCDCTL_KEY=/etc/kubernetes/pki/etcd/server.key \
 etcdctl snapshot save \
 /var/lib/etcd/snapshot-pre-upgrade-$CURDATE"
 ```
+
+## Authorization
+
+### Checking access to the Cluster
+
+```bash
+kubectl auth can-i create deployments
+kubectl auth can-i create deployments --as bob
+kubectl auth can-i create deployments --as bob --namespace developer
+```
