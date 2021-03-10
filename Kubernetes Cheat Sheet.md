@@ -47,7 +47,9 @@ kubectl auth can-i create deployments --as bob --namespace developer
 
 ## Working with Pods
 
-### Annotate Pods
+### Annotate Objects
+
+You can add annotations to nearly every API object in Kubernetes.
 
 ```bash
 kubectl annotate pods --all description='Production Pods' -n prod 
