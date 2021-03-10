@@ -24,7 +24,7 @@
     - [Install Calido CNI](#install-calido-cni)
       - [Get and adjust Config](#get-and-adjust-config)
       - [Verify node-to-node communication](#verify-node-to-node-communication)
-  - [Installation](#installation)
+  - [Client Installation](#client-installation)
     - [Install kubectl on macOS](#install-kubectl-on-macos)
   - [Kubernetes Cluster](#kubernetes-cluster)
     - [kubeadm YAML config](#kubeadm-yaml-config)
@@ -475,7 +475,7 @@ apk add telnet
 telnet OtherPodRunningNginx 443
 ```
 
-## Installation
+## Client Installation
 
 ### Install kubectl on macOS
 
