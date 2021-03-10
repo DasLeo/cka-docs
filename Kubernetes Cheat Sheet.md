@@ -41,6 +41,10 @@
   - [Resource Limits](#resource-limits)
     - [Limit resources in a Deployment](#limit-resources-in-a-deployment)
     - [Limit resources in a Namespace](#limit-resources-in-a-namespace)
+  - [Kubernetes API](#kubernetes-api)
+    - [Make API calls using curl](#make-api-calls-using-curl)
+      - [Create a new pod using curl](#create-a-new-pod-using-curl)
+  - [Useless Chapters](#useless-chapters)
 
 ## Setup Kubernetes Cluster
 
@@ -668,3 +672,69 @@ spec:
 ```bash
 kubectl -n low-usage-limit create -f limitrange.yml
 ```
+
+## Kubernetes API
+
+### Make API calls using curl
+
+This method works only if you have only one Cluster in your `.kube/config`
+
+```bash
+export client=$(grep client-cert $HOME/.kube/config |cut -d" " -f 6)
+export key=$(grep client-key-data $HOME/.kube/config |cut -d " " -f 6)
+export auth=$(grep certificate-authority-data $HOME/.kube/config |cut -d " " -f 6)
+
+echo $client | base64 -d - > ./client.pem
+echo $key | base64 -d - > ./client-key.pem
+echo $auth | base64 -d - > ./ca.pem
+
+# Determine Servers address
+kubectl config view | grep server
+
+# Get Pods
+curl --cert ./client.pem \
+--key ./client-key.pem \
+--cacert ./ca.pem \
+https://k8smaster:6443/api/v1/pods
+```
+
+#### Create a new pod using curl
+
+```json
+{
+  "kind": "Pod",
+  "apiVersion": "v1",
+  "metadata":{
+    "name": "curlpod",
+    "namespace": "default",
+    "labels": {
+      "name": "examplepod"
+    }
+  },
+  "spec": {
+    "containers": [{
+      "name": "nginx",
+      "image": "nginx",
+      "ports": [{"containerPort": 80}]
+    }]
+  }
+}
+```
+
+```bash
+curl --cert ./client.pem \
+--key ./client-key.pem --cacert ./ca.pem \
+https://k8smaster:6443/api/v1/namespaces/default/pods \
+-XPOST -H
+'
+Content-Type: application/json
+'
+\
+-d@curlpod.json
+```
+
+## Useless Chapters
+
+Additional Links of Chapters we assume are not neccecary for the exam:
+
+- [Explore API Calls](https://trainingportal.linuxfoundation.org/learn/course/kubernetes-fundamentals-lfs258/apis-and-access/lab-exercises?page=2)
