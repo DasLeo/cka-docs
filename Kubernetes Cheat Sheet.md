@@ -44,3 +44,13 @@ kubectl auth can-i create deployments
 kubectl auth can-i create deployments --as bob
 kubectl auth can-i create deployments --as bob --namespace developer
 ```
+
+## Working with Pods
+
+### Annotate Pods
+
+```bash
+kubectl annotate pods --all description='Production Pods' -n prod 
+kubectl annotate --overwrite pod webpod description="Old Production Pods" -n prod 
+kubectl -n prod annotate pod webpod description-
+```
