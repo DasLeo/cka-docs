@@ -28,13 +28,19 @@
     - [Install kubectl on macOS](#install-kubectl-on-macos)
   - [Kubernetes Cluster](#kubernetes-cluster)
     - [kubeadm YAML config](#kubeadm-yaml-config)
-  - [kubectl commands](#kubectl-commands)
   - [Maintenance](#maintenance)
+    - [Upgrade the Cluster](#upgrade-the-cluster)
+      - [Determine Packages](#determine-packages)
+      - [Upgrade Master Node](#upgrade-master-node)
+      - [Upgrade Worker Node](#upgrade-worker-node)
     - [Create Snapshots of etcd database](#create-snapshots-of-etcd-database)
   - [Authorization](#authorization)
     - [Checking access to the Cluster](#checking-access-to-the-cluster)
   - [Working with Pods](#working-with-pods)
     - [Annotate Objects](#annotate-objects)
+  - [Resource Limits](#resource-limits)
+    - [Limit resources in a Deployment](#limit-resources-in-a-deployment)
+    - [Limit resources in a Namespace](#limit-resources-in-a-namespace)
 
 ## Setup Kubernetes Cluster
 
@@ -492,9 +498,80 @@ Examples can be found here:
 - <https://github.com/kubernetes/kubeadm/issues/1152>
 - <https://github.com/kubernetes/kubernetes/issues/80582>
 
-## kubectl commands
-
 ## Maintenance
+
+### Upgrade the Cluster
+
+#### Determine Packages
+
+Update packages and show all available versions for kubeadm.
+
+```bash
+apt update
+apt-cache madison kubeadm
+
+# Show current version
+kubeadm version
+```
+
+#### Upgrade Master Node
+
+```bash
+apt-mark unhold kubeadm
+apt-get install -y kubeadm=1.20.4-00
+apt-mark hold kubeadm
+# Show installed version
+kubeadm version
+
+# Drain master
+kubectl drain MASTTERNODE-NAME --ignore-daemonsets
+
+# Plan Master Upgrade
+kubeadm upgrade plan
+
+# Do Upgrade
+kubeadm upgrade apply v1.20.4
+
+# Determine Kubelet version
+kubectl get node
+
+apt-mark unhold kubelet kubectl
+apt-get install -y kubelet=1.20.4-00 kubectl=1.20.4-00
+apt-mark hold kubelet kubectl
+
+systemctl daemon-reload
+systemctl restart kubelet
+
+# Verify Kubelet version
+kubectl get node
+
+# Make Node available again
+kubectl uncordon MASTTERNODE-NAME
+# Check if ready
+kubectl get node
+```
+
+#### Upgrade Worker Node
+
+```bash
+apt-mark unhold kubeadm
+apt update
+apt-get install -y kubeadm=1.20.4-00
+apt-mark hold kubeadm
+kubectl drain WORKERNODE-NAME --ignore-daemonsets
+kubeadm upgrade node
+
+apt-mark unhold kubelet kubectl
+apt-get install -y kubelet=1.20.4-00 kubectl=1.20.4-00
+apt-mark hold kubelet kubectl
+systemctl daemon-reload
+systemctl restart kubelet
+
+# Verify Node Status
+kubectl get nodes
+kubectl uncordon WORKERNODE-NAME
+kubectl get nodes
+```
 
 ### Create Snapshots of etcd database
 
@@ -530,4 +607,64 @@ You can add annotations to nearly every API object in Kubernetes.
 kubectl annotate pods --all description='Production Pods' -n prod 
 kubectl annotate --overwrite pod webpod description="Old Production Pods" -n prod 
 kubectl -n prod annotate pod webpod description-
+```
+
+## Resource Limits
+
+### Limit resources in a Deployment
+
+> :warning: **In case of namespace limits**: Deployment resources overwrite namespace limits!
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  template:
+    spec:
+      containers:
+      - image: vish/stress
+        name: stress
+        resources:
+          limits:
+            memory: 1Gi
+          requests:
+            memory: 500Mi
+        args:
+          - -cpus
+          - "2"
+          - -mem-total
+          - "950Mi"
+          - -mem-alloc-size
+          - "100Mi"
+          - -mem-alloc-sleep
+          - "1s"
+```
+
+### Limit resources in a Namespace
+
+```bash
+kubectl create namespace low-usage-limit
+```
+
+Create a LimitRange Object for a namespace
+
+```yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: low-resource-range
+  #namespace: low-usage-limit
+spec:
+  limits:
+    - default:
+        cpu: 1
+        memory: 500Mi
+      defaultRequest:
+        cpu: 0.5
+        memory: 100Mi
+      type: Container
+```
+
+```bash
+kubectl -n low-usage-limit create -f limitrange.yml
 ```
