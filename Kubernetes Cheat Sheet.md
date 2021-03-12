@@ -26,6 +26,7 @@
       - [Verify node-to-node communication](#verify-node-to-node-communication)
   - [Client Installation](#client-installation)
     - [Install kubectl on macOS](#install-kubectl-on-macos)
+    - [Enable Bash completion for Alias 'k'](#enable-bash-completion-for-alias-k)
   - [Kubernetes Cluster](#kubernetes-cluster)
     - [kubeadm YAML config](#kubeadm-yaml-config)
   - [Maintenance](#maintenance)
@@ -36,8 +37,17 @@
     - [Create Snapshots of etcd database](#create-snapshots-of-etcd-database)
   - [Authorization](#authorization)
     - [Checking access to the Cluster](#checking-access-to-the-cluster)
-  - [Working with Pods](#working-with-pods)
+  - [Working with Pods, Deployments and ReplicaSets](#working-with-pods-deployments-and-replicasets)
     - [Annotate Objects](#annotate-objects)
+    - [Scale Deployments](#scale-deployments)
+    - [Adjust Deployments](#adjust-deployments)
+    - [Record Deployment Changes in an Annotation](#record-deployment-changes-in-an-annotation)
+      - [Create Deployment with Change Recording](#create-deployment-with-change-recording)
+      - [View recorded Change History](#view-recorded-change-history)
+    - [Undo Deployment Rollout](#undo-deployment-rollout)
+    - [Pause & Resume Deployment](#pause--resume-deployment)
+    - [Labels](#labels)
+      - [Schedule Pods to specific Nodes using nodeSelector](#schedule-pods-to-specific-nodes-using-nodeselector)
   - [Resource Limits](#resource-limits)
     - [Limit resources in a Deployment](#limit-resources-in-a-deployment)
     - [Limit resources in a Namespace](#limit-resources-in-a-namespace)
@@ -493,6 +503,13 @@ telnet OtherPodRunningNginx 443
 curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/darwin/amd64/kubectl" && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
 ```
 
+### Enable Bash completion for Alias 'k'
+
+```bash
+echo 'alias ks=kubectl' >>~/.bashrc
+echo 'complete -F __start_kubectl k' >>~/.bashrc
+```
+
 ## Kubernetes Cluster
 
 ### kubeadm YAML config
@@ -601,7 +618,7 @@ kubectl auth can-i create deployments --as bob
 kubectl auth can-i create deployments --as bob --namespace developer
 ```
 
-## Working with Pods
+## Working with Pods, Deployments and ReplicaSets
 
 ### Annotate Objects
 
@@ -611,6 +628,87 @@ You can add annotations to nearly every API object in Kubernetes.
 kubectl annotate pods --all description='Production Pods' -n prod 
 kubectl annotate --overwrite pod webpod description="Old Production Pods" -n prod 
 kubectl -n prod annotate pod webpod description-
+```
+
+### Scale Deployments
+
+```bash
+kubectl scale deploy/dev-web --replicas=4
+kubectl scale deployment dev-web --replicas=4
+```
+
+### Adjust Deployments
+
+```bash
+kubectl edit deployment nginx
+```
+
+### Record Deployment Changes in an Annotation
+
+#### Create Deployment with Change Recording
+
+To record last changes in the Annotation `kubernetes.io/change-cause`
+
+> :warning: **[Bug: 81289](https://github.com/kubernetes/kubernetes/issues/81289)**: No longer working in `create`. Needs workaround using apply!
+
+```bash
+# No longer working command:
+kubectl create deploy ghost --image=ghost --record
+
+# Workaround:
+kubectl create deploy ghost --image=ghost
+kubectl get deployments.apps ghost -o yaml >> ghost.yml
+kubectl apply -f ghost.yml --record
+```
+
+#### View recorded Change History
+
+```bash
+kubectl rollout history deployment ghost
+
+REVISION  CHANGE-CAUSE
+1         kubectl apply --filename=ghost.yml --record=true
+2         kubectl apply --filename=ghost.yml --record=true
+```
+
+### Undo Deployment Rollout
+
+```bash
+kubectl rollout undo deployment/ghost
+
+# or to a specific revision
+kubectl rollout undo deployment/ghost --to-revision=2
+```
+
+### Pause & Resume Deployment
+
+```bash
+kubectl rollout pause deployment/ghost
+kubectl rollout resume deployment/ghost
+```
+
+### Labels
+
+```bash
+# get all pods filtered by label run=ghost
+kubectl get pods -l run=ghost 
+# get all pods in the 'default' namespace & show Column with label 'app'
+kubectl get pods -L app
+# get all pods with all labels
+kubectl get pods --show-labels
+
+# Add Label on the fly
+kubectl label pods ghost-3378155678-eq5i6 foo=bar
+```
+
+#### Schedule Pods to specific Nodes using nodeSelector
+
+```yaml
+spec:
+    containers:
+    - image: nginx
+    nodeSelector:
+        disktype: ssd
 ```
 
 ## Resource Limits
