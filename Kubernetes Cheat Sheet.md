@@ -48,12 +48,19 @@
     - [Pause & Resume Deployment](#pause--resume-deployment)
     - [Labels](#labels)
       - [Schedule Pods to specific Nodes using nodeSelector](#schedule-pods-to-specific-nodes-using-nodeselector)
+  - [Jobs & Cronjobs](#jobs--cronjobs)
+    - [Create Job](#create-job)
+    - [Create a Cronjob](#create-a-cronjob)
   - [Resource Limits](#resource-limits)
     - [Limit resources in a Deployment](#limit-resources-in-a-deployment)
     - [Limit resources in a Namespace](#limit-resources-in-a-namespace)
   - [Kubernetes API](#kubernetes-api)
     - [Make API calls using curl](#make-api-calls-using-curl)
       - [Create a new pod using curl](#create-a-new-pod-using-curl)
+    - [Access Cluster Certificates from inside Pods](#access-cluster-certificates-from-inside-pods)
+    - [Access Cluster API Server using Proxy](#access-cluster-api-server-using-proxy)
+  - [Command Line Hacks](#command-line-hacks)
+    - [Create yaml files on the fly](#create-yaml-files-on-the-fly)
   - [Useless Chapters](#useless-chapters)
 
 ## Setup Kubernetes Cluster
@@ -711,6 +718,53 @@ spec:
         disktype: ssd
 ```
 
+## Jobs & Cronjobs
+
+### Create Job
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sleepy
+spec:
+  completions: 5
+  parallelism: 2
+  activeDeadlineSeconds: 20
+  template:
+    spec:
+      containers:
+      - name: resting
+        image: busybox
+        command: ["/bin/sleep"]
+        args: ["5"]
+      restartPolicy: Never
+```
+
+### Create a Cronjob
+
+```yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: test
+spec:
+  schedule: '*/2 * * * *'
+  jobTemplate:
+    metadata:
+      name: test
+    spec:
+      template:
+        spec:
+          containers:
+          - image: busybox
+            name: resting
+            command: 
+              - "/bin/sleep"
+            args: ["5"]
+          restartPolicy: Never
+```
+
 ## Resource Limits
 
 ### Limit resources in a Deployment
@@ -829,6 +883,32 @@ Content-Type: application/json
 '
 \
 -d@curlpod.json
+```
+
+### Access Cluster Certificates from inside Pods
+
+You can find all Cluster Certs under `/var/run/secrets/kubernetes.io/serviceaccount/` from inside every Pod.
+
+### Access Cluster API Server using Proxy
+
+```bash
+kubectl proxy --api-prefix=/
+curl http://127.0.0.1:8001/api/
+curl http://127.0.0.1:8001/api/v1/namespaces
+
+# use custom prefix
+kubectl proxy --api-prefix=/k8s
+curl http://127.0.0.1:8001/k8s/api/
+curl http://127.0.0.1:8001/k8s/api/v1/namespaces
+```
+
+## Command Line Hacks
+
+### Create yaml files on the fly
+
+```bash
+kubectl create [deployment|pods|replicaset|secret|configmap] NAME --dry-run=client -o yaml | vim -
+kubectl expose deployment NAME --port 80 --type NodePort --output yaml --dry-run=client | vim -
 ```
 
 ## Useless Chapters
