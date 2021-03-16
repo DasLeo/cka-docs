@@ -45,6 +45,7 @@
       - [Create Deployment with Change Recording](#create-deployment-with-change-recording)
       - [View recorded Change History](#view-recorded-change-history)
     - [Undo Deployment Rollout](#undo-deployment-rollout)
+    - [Delete Deployment & ReplicaSet without touching children](#delete-deployment--replicaset-without-touching-children)
     - [Pause & Resume Deployment](#pause--resume-deployment)
     - [Labels](#labels)
       - [Schedule Pods to specific Nodes using nodeSelector](#schedule-pods-to-specific-nodes-using-nodeselector)
@@ -665,7 +666,11 @@ kubectl create deploy ghost --image=ghost --record
 # Workaround:
 kubectl create deploy ghost --image=ghost
 kubectl get deployments.apps ghost -o yaml >> ghost.yml
+
 kubectl apply -f ghost.yml --record
+
+# Or during an edit
+kubectl edit deploy ghost --record
 ```
 
 #### View recorded Change History
@@ -685,6 +690,14 @@ kubectl rollout undo deployment/ghost
 
 # or to a specific revision
 kubectl rollout undo deployment/ghost --to-revision=2
+```
+
+### Delete Deployment & ReplicaSet without touching children
+
+> :warning: **--cascade=false is deprecated**: Use `--cascade=orphan` now.
+
+```bash
+kubectl delete deployment nginx --cascade=orphan
 ```
 
 ### Pause & Resume Deployment
