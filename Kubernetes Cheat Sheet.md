@@ -62,6 +62,12 @@
     - [Access Cluster API Server using Proxy](#access-cluster-api-server-using-proxy)
   - [Command Line Hacks](#command-line-hacks)
     - [Create yaml files on the fly](#create-yaml-files-on-the-fly)
+  - [YAML Templates](#yaml-templates)
+    - [Deployment](#deployment)
+    - [ReplicaSet](#replicaset)
+    - [DaemonSet](#daemonset)
+    - [ConfigMap](#configmap)
+    - [Pod with ConfigMap](#pod-with-configmap)
   - [Useless Chapters](#useless-chapters)
 
 ## Setup Kubernetes Cluster
@@ -922,6 +928,155 @@ curl http://127.0.0.1:8001/k8s/api/v1/namespaces
 ```bash
 kubectl create [deployment|pods|replicaset|secret|configmap] NAME --dry-run=client -o yaml | vim -
 kubectl expose deployment NAME --port 80 --type NodePort --output yaml --dry-run=client | vim -
+```
+
+## YAML Templates
+
+### Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nginx
+  name: nginx
+  namespace: default
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: nginx
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - image: nginx
+        imagePullPolicy: Always
+        name: nginx
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+
+```
+
+### ReplicaSet
+
+*Note:* ReplicaSets do not have an update strategy like Replication Controllers. Use a Deployment in case you need rolling updates.
+
+```yaml
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: rs-one
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      system: ReplicaOne
+  template:
+    metadata:
+      labels:
+        system: ReplicaOne
+    spec:
+      containers:
+      - image: nginx:1.15.1
+        imagePullPolicy: Always
+        name: nginx
+        ports:
+        - containerPort: 80
+      restartPolicy: Always
+
+```
+
+### DaemonSet
+
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ds-one 
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      system: DaemonSetOne
+  template:
+    metadata:
+      name: ds-pod
+      labels:
+        system: DaemonSetOne
+    spec:
+      containers:
+      - image: nginx:1.15.1
+        imagePullPolicy: Always
+        name: nginx
+        ports:
+        - containerPort: 80
+      restartPolicy: Always
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: OnDelete
+```
+
+### ConfigMap
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fast-car
+  namespace: default
+data:
+  car.make: Opel
+  car.model: Speedster
+  car.trim: Tiefergelegt
+```
+
+### Pod with ConfigMap
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: shell-demo
+  namespace: default
+spec:
+  containers:
+  - image: nginx
+    name: nginx
+    env:
+    - name: ilike
+      valueFrom:
+        configMapKeyRef:
+          name: colors
+          key: favorite
+    envFrom:
+    - configMapRef:
+        name: colors
+    volumeMounts:
+    - name: car-vol
+      mountPath: /etc/car
+  volumes:
+  - name: car-vol
+    configMap:
+      name: fast-car
 ```
 
 ## Useless Chapters
