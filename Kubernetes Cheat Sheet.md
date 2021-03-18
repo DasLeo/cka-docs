@@ -49,6 +49,8 @@
     - [Pause & Resume Deployment](#pause--resume-deployment)
     - [Labels](#labels)
       - [Schedule Pods to specific Nodes using nodeSelector](#schedule-pods-to-specific-nodes-using-nodeselector)
+  - [ConfigMaps & Secrets](#configmaps--secrets)
+    - [Secrets](#secrets)
   - [Jobs & Cronjobs](#jobs--cronjobs)
     - [Create Job](#create-job)
     - [Create a Cronjob](#create-a-cronjob)
@@ -737,6 +739,12 @@ spec:
     nodeSelector:
         disktype: ssd
 ```
+
+## ConfigMaps & Secrets
+
+### Secrets
+
+- Secrets are limited to 1MB in size as they will be saved to etcd
 
 ## Jobs & Cronjobs
 
