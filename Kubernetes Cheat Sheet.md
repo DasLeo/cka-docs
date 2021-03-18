@@ -1037,6 +1037,7 @@ spec:
         name: nginx
         ports:
         - containerPort: 80
+        # Env vars from Secret
         env:
         - name: MYSQL_ROOT_PASSWORD
           valueFrom:
@@ -1044,7 +1045,19 @@ spec:
               secretKeyRef:
                   name: mysql
                   key: password
+        # Mount Secrets as Files
+        volumeMounts:
+        - name: service-key
+          mountPath: /root/key.json
+          subPath: key.json
       restartPolicy: Always
+      volumes:
+      - name: service-key
+        secret:
+          secretName: my-secret
+          items:
+          - key: service-account-key
+            path: key.json
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 1
