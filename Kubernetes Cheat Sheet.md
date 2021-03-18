@@ -67,6 +67,7 @@
     - [ReplicaSet](#replicaset)
     - [DaemonSet](#daemonset)
     - [ConfigMap](#configmap)
+    - [Secret](#secret)
     - [Pod with ConfigMap](#pod-with-configmap)
   - [Useless Chapters](#useless-chapters)
 
@@ -1028,6 +1029,13 @@ spec:
         name: nginx
         ports:
         - containerPort: 80
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            name: mysql
+              secretKeyRef:
+                  name: mysql
+                  key: password
       restartPolicy: Always
   updateStrategy:
     rollingUpdate:
@@ -1047,6 +1055,19 @@ data:
   car.make: Opel
   car.model: Speedster
   car.trim: Tiefergelegt
+```
+
+### Secret
+
+> Secrets are `base64` encoded
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lf-secret
+data:
+  password: TEZUckAxbgo=
 ```
 
 ### Pod with ConfigMap
