@@ -53,6 +53,17 @@
       - [Pod Affinity and Pod AntiAffinity](#pod-affinity-and-pod-antiaffinity)
       - [Pod Affinity Rules and Weights](#pod-affinity-rules-and-weights)
       - [NodeAffinity & NodeAntiAffinity](#nodeaffinity--nodeantiaffinity)
+  - [Working with Services, Ingress and CoreDNS](#working-with-services-ingress-and-coredns)
+    - [Services](#services)
+      - [Expose](#expose)
+        - [Add container port to deployment](#add-container-port-to-deployment)
+        - [Expose deployment with type cluster ip](#expose-deployment-with-type-cluster-ip)
+        - [Expose with type NodePort](#expose-with-type-nodeport)
+      - [Check endpoints and services](#check-endpoints-and-services)
+    - [CoreDNS](#coredns)
+      - [How to dig](#how-to-dig)
+      - [How to get all k8s-app pods](#how-to-get-all-k8s-app-pods)
+      - [How to map to map nginx.test.io by editing config map of core DNS pod](#how-to-map-to-map-nginxtestio-by-editing-config-map-of-core-dns-pod)
   - [ConfigMaps & Secrets](#configmaps--secrets)
     - [Secrets](#secrets)
   - [Jobs & Cronjobs](#jobs--cronjobs)
@@ -66,6 +77,8 @@
       - [Create a new pod using curl](#create-a-new-pod-using-curl)
     - [Access Cluster Certificates from inside Pods](#access-cluster-certificates-from-inside-pods)
     - [Access Cluster API Server using Proxy](#access-cluster-api-server-using-proxy)
+  - [Troubleshoot](#troubleshoot)
+    - [Ubuntu/alpine Pod for debugging](#ubuntualpine-pod-for-debugging)
   - [Command Line Hacks](#command-line-hacks)
     - [Create yaml files on the fly](#create-yaml-files-on-the-fly)
   - [YAML Templates](#yaml-templates)
@@ -75,6 +88,8 @@
     - [ConfigMap](#configmap)
     - [Secret](#secret)
     - [Pod with ConfigMap](#pod-with-configmap)
+    - [ClusterRole and ClusterRoleBinding for traefik](#clusterrole-and-clusterrolebinding-for-traefik)
+    - [traefik ingress controller + ingress service + service account](#traefik-ingress-controller--ingress-service--service-account)
   - [Useless Chapters](#useless-chapters)
 
 ## Setup Kubernetes Cluster
@@ -723,12 +738,14 @@ kubectl rollout resume deployment/ghost
 ### Labels
 
 ```bash
-# get all pods filtered by label run=ghost
+# get all pods filtered by label run=ghost. This can of course be done with all objects like nodes etc. You can also use delete for creating by label
 kubectl get pods -l run=ghost 
 # get all pods in the 'default' namespace & show Column with label 'app'
 kubectl get pods -L app
 # get all pods with all labels
 kubectl get pods --show-labels
+#Remove system label from node
+kubectl label node worker system-
 
 # Add Label on the fly
 kubectl label pods ghost-3378155678-eq5i6 foo=bar
@@ -828,6 +845,85 @@ spec:
                 values:
                 - fast
                 - quick
+```
+
+## Working with Services, Ingress and CoreDNS
+
+### Services
+
+#### Expose
+
+##### Add container port to deployment
+
+```yaml
+  spec:
+    containers:
+    - image: nginx
+      ports:
+      - containerPort: 80
+        protocol: TCP
+```
+
+##### Expose deployment with type cluster ip
+
+```bash
+kubectl expose deployment nginx-one
+
+#Cluster ip can be accessed from inside the cluster with endpoint ip and port 80
+```
+
+##### Expose with type NodePort
+
+```bash
+  kubectl expose deployment nginx-one --type=NodePort --name=service-lab
+
+  #Node Port can be accessed from outside the cluster with the exposed high port
+```
+
+#### Check endpoints and services
+
+```bash
+kubectl get svc nginx-one
+
+kubectl get ep nginx-one
+```
+
+### CoreDNS
+
+#### How to dig
+1. Create an ubuntu/alpine pod
+2. Exec into the pod with ```kubectl exec -it alpine sh```
+3. Install ```apk add; apk add curl bind```
+4. ```dig```
+5. ```dig @10.96.0.10 -x 10.96.0.10```
+6. curl service-lab.accounting.svc.cluster.local.
+7. curl service-lab
+8. curl service-lab.accounting
+
+#### How to get all k8s-app pods
+
+```bash
+kubectl get pod -l k8s-app --all-namespaces
+```
+
+#### How to map to map nginx.test.io by editing config map of core DNS pod
+
+```bash
+#Show configmap of coredns
+kubectl -n kube-system get configmaps coredns -o yaml
+#Edit configmap of coredns 
+kubectl -n kube-system edit configmaps coredns
+#Add the following to configmap under :53
+rewrite name regex (.*)\.test\.io {1}.default.svc.cluster.local
+#Delete all coredns pods
+k delete pods -l k8s-app=kube-dns --all-namespaces
+#Now inside the container this should work
+dig nginx.test.io
+#Eventually configure answer with rewrite stop
+rewrite stop {
+  name regex (.*)\.test\.io {1}.default.svc.cluster.local
+  answer name (.*)\.default\.svc\.cluster\.local {1}.test.io
+}
 ```
 
 ## ConfigMaps & Secrets
@@ -1020,6 +1116,23 @@ curl http://127.0.0.1:8001/k8s/api/
 curl http://127.0.0.1:8001/k8s/api/v1/namespaces
 ```
 
+## Troubleshoot
+
+### Ubuntu/alpine Pod for debugging
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nettool
+spec:
+  containers:
+  - name: alpine
+    image: alpine:latest
+    command: [ "sleep"  ]
+    args: [ "infinity" ]
+```
+
 ## Command Line Hacks
 
 ### Create yaml files on the fly
@@ -1209,6 +1322,109 @@ spec:
   - name: car-vol
     configMap:
       name: fast-car
+```
+
+### ClusterRole and ClusterRoleBinding for traefik
+
+```yaml
+ind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: traefik-ingress-controller
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - endpoints
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: traefik-ingress-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik-ingress-controller
+subjects:
+- kind: ServiceAccount
+  name: traefik-ingress-controller
+  namespace: kube-system
+```
+
+### traefik ingress controller + ingress service + service account
+
+```yaml
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik-ingress-controller
+  namespace: kube-system
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: traefik-ingress-controller
+  namespace: kube-system
+  labels:
+    k8s-app: traefik-ingress-lb
+spec:
+  selector:
+    matchLabels:
+      name: traefik-ingress-lb
+  template:
+    metadata:
+      labels:
+        k8s-app: traefik-ingress-lb
+        name: traefik-ingress-lb
+    spec:
+      serviceAccountName: traefik-ingress-controller
+      terminationGracePeriodSeconds: 60
+      hostNetwork: True
+      containers:
+      - image: traefik:1.7.13
+        name: traefik-ingress-lb
+        ports:
+        - name: http
+          containerPort: 80
+          hostPort: 80
+        - name: admin
+          containerPort: 8080
+          hostPort: 8080
+        args:
+        - --api
+        - --kubernetes
+        - --logLevel=INFO
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-ingress-service
+  namespace: kube-system
+spec:
+  selector:
+    k8s-app: traefik-ingress-lb
+  ports:
+    - protocol: TCP
+      port: 80
+      name: web
+    - protocol: TCP
+      port: 8080
+      name: admin
 ```
 
 ## Useless Chapters
