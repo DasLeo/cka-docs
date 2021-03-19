@@ -48,7 +48,11 @@
     - [Delete Deployment & ReplicaSet without touching children](#delete-deployment--replicaset-without-touching-children)
     - [Pause & Resume Deployment](#pause--resume-deployment)
     - [Labels](#labels)
+    - [Scheduling and Affinity](#scheduling-and-affinity)
       - [Schedule Pods to specific Nodes using nodeSelector](#schedule-pods-to-specific-nodes-using-nodeselector)
+      - [Pod Affinity and Pod AntiAffinity](#pod-affinity-and-pod-antiaffinity)
+      - [Pod Affinity Rules and Weights](#pod-affinity-rules-and-weights)
+      - [NodeAffinity & NodeAntiAffinity](#nodeaffinity--nodeantiaffinity)
   - [ConfigMaps & Secrets](#configmaps--secrets)
     - [Secrets](#secrets)
   - [Jobs & Cronjobs](#jobs--cronjobs)
@@ -730,6 +734,8 @@ kubectl get pods --show-labels
 kubectl label pods ghost-3378155678-eq5i6 foo=bar
 ```
 
+### Scheduling and Affinity
+
 #### Schedule Pods to specific Nodes using nodeSelector
 
 ```yaml
@@ -738,6 +744,90 @@ spec:
     - image: nginx
     nodeSelector:
         disktype: ssd
+```
+
+#### Pod Affinity and Pod AntiAffinity
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  template:
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - store
+            topologyKey: "kubernetes.io/hostname"
+```
+
+#### Pod Affinity Rules and Weights
+
+> The scheduler tries to choose, or avoid the node with the greatest combined value.
+
+```yaml
+podAntiAffinity:
+  preferredDuringSchedulingIgnoredDuringExecution:
+  - weight: 100
+    podAffinityTerm:
+      labelSelector:
+        matchExpressions:
+        - key: security
+          operator: In
+          values:
+          - S2
+    topologyKey: kubernetes.io/hostname
+  - weight: 90
+    podAffinityTerm:
+      labelSelector:
+        matchExpressions:
+        - key: ssd
+          operator: In
+          values:
+          - Gold
+    topologyKey: kubernetes.io/hostname
+```
+
+#### NodeAffinity & NodeAntiAffinity
+
+> This will replace `nodeSelector` in the future
+
+- Operators: `In, NotIn, Exists, DoesNotExist`
+- Rule types:
+  - `requiredDuringSchedulingIgnoredDuringExecution`
+  - `preferredDuringSchedulingIgnoredDuringExecution`
+  - Planned for future: `requiredDuringSchedulingRequiredDuringExecution`
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity: 
+          requiredDuringSchedulingIgnoredDuringExecution:  
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/colo-tx-name
+                operator: In
+                values:
+                - tx-aus
+                - tx-dal
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: disk-speed
+                operator: In
+                values:
+                - fast
+                - quick
 ```
 
 ## ConfigMaps & Secrets
