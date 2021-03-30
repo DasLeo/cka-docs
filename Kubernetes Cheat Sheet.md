@@ -891,6 +891,7 @@ kubectl get ep nginx-one
 ### CoreDNS
 
 #### How to dig
+
 1. Create an ubuntu/alpine pod
 2. Exec into the pod with ```kubectl exec -it alpine sh```
 3. Install ```apk add; apk add curl bind```
