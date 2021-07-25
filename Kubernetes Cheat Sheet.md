@@ -180,7 +180,8 @@ sudo apt-mark hold cri-o cri-o-runc
 
 #### CRI-O Daemon Setup
 
-Next add the `conmon` binary path and the docker.io registry to `/etc/crio/crio.conf`
+Next add the `conmon` binary path to `/etc/crio/crio.conf`
+Then add image registries to `/etc/containers/registries.conf`
 CRI-O uses systemd as cgroup driver by default, but if this ever changes, we need to set `cgroup_manager = "systemd"` and `conmon_cgroup="system.slice"` as well.
 
 ```bash
@@ -189,12 +190,10 @@ which conmon
 
 ```/etc/crio/crio.conf
 conmon = "/usr/bin/conmon"
+```
 
-registries = [
-  "docker.io",
-  "quay.io",
-  "registry.fedoraproject.org",
- ]
+```/etc/containers/registries.conf
+unqualified-search-registries = ["docker.io", "quay.io"]
 ```
 
 After that we can start the systemd services
