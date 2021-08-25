@@ -541,7 +541,7 @@ curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s ht
 ### Enable Bash completion for Alias 'k'
 
 ```bash
-echo 'alias ks=kubectl' >>~/.bashrc
+echo 'alias k=kubectl' >>~/.bashrc
 echo 'complete -F __start_kubectl k' >>~/.bashrc
 ```
 
