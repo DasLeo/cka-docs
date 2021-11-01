@@ -522,12 +522,12 @@ kubectl apply -f calico.yaml
 #### Verify node-to-node communication
 
 ```bash
-kubectl create deployment shell-demo --image nginx
+kubectl create deployment shell-demo --image nginx:alpine
 kubectl get pods --selector app=shell-demo
 kubectl exec --stdin --tty shell-demo-xxxxxxx-xxxxx -- /bin/bash
 
-apk add telnet
-telnet OtherPodRunningNginx 443
+apk add curl
+curl <POD-IP-RUNNING-NGINX> 443
 ```
 
 ## Client Installation
