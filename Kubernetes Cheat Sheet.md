@@ -22,7 +22,9 @@
       - [Join using kubeadm](#join-using-kubeadm)
     - [Schedule pods on Control plane node](#schedule-pods-on-control-plane-node)
     - [Install Calido CNI](#install-calido-cni)
+      - [Install Tigera Operator](#install-tigera-operator)
       - [Get and adjust Config](#get-and-adjust-config)
+      - [Enable Wireguard Encryption in Calico Network](#enable-wireguard-encryption-in-calico-network)
       - [Verify node-to-node communication](#verify-node-to-node-communication)
   - [Client Installation](#client-installation)
     - [Install kubectl on macOS](#install-kubectl-on-macos)
@@ -496,28 +498,74 @@ kubectl taint nodes --all node-role.kubernetes.io/master-
 
 ### Install Calido CNI
 
+#### Install Tigera Operator
+
+```bash
+kubectl create -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
+```
+
 #### Get and adjust Config
 
-```bash
-wget https://docs.projectcalico.org/manifests/calico.yaml
-```
-
-```calico.yaml
-            # Enable IPIP
-            - name: CALICO_IPV4POOL_IPIP
-              value: "Never"
-
-
-            # The default IPv4 pool to create on startup if none exists. Pod IPs will be
-            # chosen from this range. Changing this value after installation will have
-            # no effect. This should fall within `--cluster-cidr`.
-            - name: CALICO_IPV4POOL_CIDR
-              value: "192.168.0.0/16"
-```
+Download CustomResource Manifest for Calico and adjust your Pod Network.
 
 ```bash
-kubectl apply -f calico.yaml
+wget https://docs.projectcalico.org/manifests/custom-resources.yaml
 ```
+
+```yaml
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork:
+    ipPools:
+    - blockSize: 26
+      cidr: 192.168.0.0/16                 # <<<< Adjust here
+      encapsulation: VXLANCrossSubnet
+      natOutgoing: Enabled
+      nodeSelector: all()
+```
+
+```bash
+kubectl create -f custom-resources.yaml
+watch kubectl get pods -n calico-system
+```
+
+#### Enable Wireguard Encryption in Calico Network
+
+Install Wireguard on all your K8s Nodes first:
+
+```bash
+apt install wireguard -y
+```
+
+Install `calicoctl` client as Kubernetes Pod.
+> :warning: Make sure that the version of `calicoctl` matches the calico version running in the Cluster!
+
+```bash
+kubectl apply -f https://docs.projectcalico.org/manifests/calicoctl.yaml
+```
+
+Enable Wireguard for the Felixconfiguration with the name `default`:
+
+```bash
+kubectl exec -ti -n kube-system calicoctl -- /calicoctl patch felixconfiguration default --type='merge' -p '{"spec":{"wireguardEnabled":true}}'
+```
+
+Verify Configuration afterwards:
+
+```bash
+kubectl exec -ti -n kube-system calicoctl -- /calicoctl get node <NODE-NAME> -o yaml
+
+   ...
+   status:
+     ...
+     wireguardPublicKey: jlkVyQYooZYzI2wFfNhSZez5eWh44yfq1wKVjLvSXgY=
+     ...
+```
+
+Resources: https://docs.projectcalico.org/getting-started/clis/calicoctl/install
 
 #### Verify node-to-node communication
 
